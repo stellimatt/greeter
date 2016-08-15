@@ -1,3 +1,5 @@
+CREATE DATABASE IF NOT EXISTS greeter;
+USE greeter;
 DROP TABLE IF EXISTS `greetings`;
 CREATE TABLE `greetings` (
   `ID` int(11) NOT NULL AUTO_INCREMENT,
@@ -8,7 +10,7 @@ CREATE TABLE `greetings` (
 
 LOCK TABLES `greetings` WRITE;
 INSERT INTO `greetings` VALUES (1,'Hello');
-INSERT INTO `greetings` VALUES (1,'Welcome');
-INSERT INTO `greetings` VALUES (1,'Greetings');
-INSERT INTO `greetings` VALUES (1,'Good Afternoon');
+INSERT INTO `greetings` VALUES (2,'Welcome');
+INSERT INTO `greetings` VALUES (3,'Greetings');
+INSERT INTO `greetings` VALUES (4,'Good Afternoon');
 UNLOCK TABLES;
