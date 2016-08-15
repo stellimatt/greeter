@@ -20,6 +20,6 @@
     }
   }
 
-  echo "<h1>" . get_random_greeting() . "</h1>";
+  echo get_random_greeting();
 
 ?>
