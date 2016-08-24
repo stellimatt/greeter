@@ -1,0 +1,146 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Creates an RDS DBInstance",
+  "Parameters": {
+    "VpcId": {
+      "Type": "AWS::EC2::VPC::Id",
+      "Description": "Existing VPC ID to use"
+    },
+    "DBSubnetGroupID": {
+      "Type": "String",
+      "Description": "ID of the existing subnet group"
+    },
+    "DBInstanceIdentifier": {
+      "Type": "String",
+      "Description": "Name for amazon DB instance"
+    },
+    "DBName": {
+      "Type": "String",
+      "Description": "The database name",
+      "MinLength": 0,
+      "MaxLength": 64,
+      "Default": ""
+    },
+    "DBUsername": {
+      "Type": "String",
+      "Description": "The database username",
+      "MinLength": 1,
+      "MaxLength": 16,
+      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9]*",
+      "ConstraintDescription": "must begin with a letter and contain only alphanumeric characters."
+    },
+    "DBPassword": {
+      "Type": "String",
+      "Description": "The database password",
+      "MinLength": 8,
+      "MaxLength": 41,
+      "AllowedPattern": "[a-zA-Z0-9]*",
+      "ConstraintDescription": "restricted to alpha-numeric character set",
+      "NoEcho": true
+    },
+    "DBClass": {
+      "Type": "String",
+      "Description": "Database instance size",
+      "ConstraintDescription": "must be a valid database instance type."
+    },
+    "DBStorageSize": {
+      "Type": "Number",
+      "Description": "The size of the database (Gb)",
+      "Default": 5,
+      "ConstraintDescription": "must be between 5 and 1024Gb.",
+      "MinValue": 5,
+      "MaxValue": 1024
+    },
+    "DBParameterGroupName": {
+      "Type": "String",
+      "Description": "DB parameter group name"
+    }
+  },
+  "Resources": {
+    "securityGroup": {
+      "Properties": {
+        "GroupDescription": "Security group for RDS network access",
+        "VpcId": {
+          "Ref": "VpcId"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "3306",
+            "ToPort": "3306",
+            "CidrIp": "10.0.0.0/16"
+          }
+        ]
+      },
+      "Type": "AWS::EC2::SecurityGroup"
+    },
+    "serverDB": {
+      "Properties": {
+        "DBInstanceIdentifier": {
+          "Ref": "DBInstanceIdentifier"
+        },
+        "DBName": {
+          "Ref": "DBName"
+        },
+        "AllocatedStorage": {
+          "Ref": "DBStorageSize"
+        },
+        "DBInstanceClass": {
+          "Ref": "DBClass"
+        },
+        "Engine": "mysql",
+        "EngineVersion": "5.6",
+        "MasterUsername": {
+          "Ref": "DBUsername"
+        },
+        "MasterUserPassword": {
+          "Ref": "DBPassword"
+        },
+        "DBSubnetGroupName": {
+          "Ref": "DBSubnetGroupID"
+        },
+        "VPCSecurityGroups": [
+          {
+            "Ref": "securityGroup"
+          }
+        ],
+        "DBParameterGroupName": {
+          "Ref": "DBParameterGroupName"
+        },
+        "StorageType": "standard",
+        "MultiAZ": false,
+        "StorageEncrypted": false,
+        "Tags": [
+          {
+            "Key": "Client",
+            "Value": "myUSCIS"
+          }
+        ]
+      },
+      "Type": "AWS::RDS::DBInstance"
+    }
+  },
+  "Outputs": {
+    "DBInstanceId": {
+      "Value": {
+        "Ref": "serverDB"
+      }
+    },
+    "DBEndpoint": {
+      "Value": {
+        "Fn::GetAtt": [
+          "serverDB",
+          "Endpoint.Address"
+        ]
+      }
+    },
+    "DBPort": {
+      "Value": {
+        "Fn::GetAtt": [
+          "serverDB",
+          "Endpoint.Port"
+        ]
+      }
+    }
+  }
+}
