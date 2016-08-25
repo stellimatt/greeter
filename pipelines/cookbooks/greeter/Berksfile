@@ -1,0 +1,6 @@
+source "https://supermarket.chef.io"
+
+cookbook 'apt'
+cookbook 'php'
+cookbook 'php5-mysql'
+cookbook 'apache2'

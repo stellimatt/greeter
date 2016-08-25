@@ -1,0 +1,12 @@
+name             'greeter'
+maintainer       'YOUR_NAME'
+maintainer_email 'YOUR_EMAIL'
+license          'All rights reserved'
+description      'Installs/Configures greeter'
+long_description 'Installs/Configures greeter'
+version          '0.1.0'
+
+depends 'apt'
+depends 'php'
+depends 'php5-mysql'
+depends 'apache2'
