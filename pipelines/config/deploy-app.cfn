@@ -227,7 +227,11 @@
                 {
                   "Ref": "DocRoot"
                 },
-                "\",\n    \"server_name\": \"%{}\"\n  }\n}\nCHEFJSON\n\ncat > /tmp/solo.rb <<SOLO\n\tcookbook_path ['/tmp/cookbooks', '/opt/greeter/cookbooks']\nSOLO\n\n\nchef-solo -c /tmp/solo.rb -j /tmp/chef.json\n"
+                "\",\n    \"server_name\": \"",
+                {
+                  "Ref": "ServerName"
+                },
+                "\"\n  }\n}\nCHEFJSON\n\ncat > /tmp/solo.rb <<SOLO\n\tcookbook_path ['/tmp/cookbooks', '/opt/greeter/cookbooks']\nSOLO\n\n\nchef-solo -c /tmp/solo.rb -j /tmp/chef.json\n"
               ]
             ]
           }
