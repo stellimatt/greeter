@@ -69,16 +69,28 @@
         "SecurityGroupIngress": [
           {
             "IpProtocol": "tcp",
-            "FromPort": 8080,
-            "ToPort": 8080,
+            "FromPort": 80,
+            "ToPort": 80,
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 22,
+            "ToPort": 22,
             "CidrIp": "0.0.0.0/0"
           }
         ],
         "SecurityGroupEgress": [
           {
             "IpProtocol": "tcp",
-            "FromPort": 8080,
-            "ToPort": 8080,
+            "FromPort": 80,
+            "ToPort": 80,
+            "CidrIp": "0.0.0.0/0"
+          }
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 22,
+            "ToPort": 22,
             "CidrIp": "0.0.0.0/0"
           }
         ]
@@ -93,7 +105,7 @@
         },
         "CrossZone": true,
         "HealthCheck": {
-          "Target": "HTTP:8080/",
+          "Target": "HTTP:80/",
           "HealthyThreshold": 3,
           "UnhealthyThreshold": 5,
           "Interval": 90,
@@ -101,8 +113,8 @@
         },
         "Listeners": [
           {
-            "LoadBalancerPort": 8080,
-            "InstancePort": 8080,
+            "LoadBalancerPort": 80,
+            "InstancePort": 80,
             "Protocol": "TCP"
           }
         ],
@@ -196,7 +208,7 @@
             "Fn::Join": [
               "",
               [
-                "#!/bin/bash\n\n# git clone greeter\ngit clone git://github.com/stellimatt/greeter /opt/greeter\n\n#install chefdk\nif [ \":\" == \":$(dpkg -l | grep chefdk)\" ]; then\n  pushd /tmp\n  wget --quiet https://packages.chef.io/stable/ubuntu/12.04/chefdk_0.16.28-1_amd64.deb\n  dpkg -i chefdk_0.16.28-1_amd64.deb\n  mkdir /tmp/cookbooks\nfi\n\npushd /opt/greeter/cookbooks/greeter\nberks vendor /tmp/cookbooks\n\ncat > /tmp/chef.json <<CHEFJSON\n{\n  \"run_list\": [\n    \"greeter\"\n  ],\n  \"greeter\": {\n    \"db_url\": \"",
+                "#!/bin/bash\n\necho $\"whoami\" > /tmp/debug\n# git clone greeter\ngit clone git://github.com/stellimatt/greeter /opt/greeter\n\n#install chefdk\nif [ \":\" == \":$(dpkg -l | grep chefdk)\" ]; then\n  pushd /tmp\n  wget --quiet https://packages.chef.io/stable/ubuntu/12.04/chefdk_0.16.28-1_amd64.deb\n  dpkg -i chefdk_0.16.28-1_amd64.deb\n  mkdir /tmp/cookbooks\nfi\n\npushd /opt/greeter/cookbooks/greeter\nberks vendor /tmp/cookbooks\n\ncat > /tmp/chef.json <<CHEFJSON\n{\n  \"run_list\": [\n    \"greeter\"\n  ],\n  \"greeter\": {\n    \"db_url\": \"",
                 {
                   "Ref": "DbUrl"
                 },
