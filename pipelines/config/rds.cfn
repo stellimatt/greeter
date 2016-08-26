@@ -14,6 +14,10 @@
       "Type": "String",
       "Description": "Name for amazon DB instance"
     },
+    "AppName": {
+      "Type": "String",
+      "Description": "Name to use for the application"
+    },
     "DBName": {
       "Type": "String",
       "Description": "The database name",

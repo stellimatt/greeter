@@ -81,6 +81,7 @@ aws cloudformation create-stack \
     ParameterKey=DbPassword,ParameterValue=${rds_password} \
     ParameterKey=DbUsername,ParameterValue=${rds_username} \
     ParameterKey=DbUrl,ParameterValue=${db_url} \
+    ParameterKey=DocRoot,ParameterValue="/var/www/${app_name}" \
     ParameterKey=DbName,ParameterValue=${app_name}
 
 aws cloudformation wait stack-create-complete --stack-name ${asg_stack_name}
