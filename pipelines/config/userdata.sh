@@ -1,5 +1,6 @@
 #!/bin/bash
-
+apt-get update
+apt-get install git -y
 # git clone greeter
 git clone git://github.com/stellimatt/greeter /opt/greeter
 
@@ -11,7 +12,7 @@ if [ ":" == ":$(dpkg -l | grep chefdk)" ]; then
   mkdir /tmp/cookbooks
 fi
 
-pushd /opt/greeter/cookbooks/greeter
+pushd /opt/greeter/pipelines/cookbooks/greeter
 berks vendor /tmp/cookbooks
 
 cat > /tmp/chef.json <<CHEFJSON
@@ -32,7 +33,7 @@ cat > /tmp/chef.json <<CHEFJSON
 CHEFJSON
 
 cat > /tmp/solo.rb <<SOLO
-	cookbook_path ['/tmp/cookbooks', '/opt/greeter/cookbooks']
+	cookbook_path ['/tmp/cookbooks', '/opt/greeter/pipelines/cookbooks']
 SOLO
 
 
