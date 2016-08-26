@@ -12,7 +12,7 @@ aws_azs=${AWS_AZS:-us-east-1c,us-east-1b}
 aws_keypair=${AWS_KEYPAIR:-example.pem}
 working_directory=.working_directory
 
-rds_password=${RDS_PWD:-ethelsucks}
+rds_password=${RDS_PWD:-example123}
 rds_username=${RDS_USER_NAME:-fred}
 
 # pull source code:
@@ -45,11 +45,11 @@ if [ ":$stack_exists" == ":" ]; then
     --parameters \
       ParameterKey=VpcId,ParameterValue=${aws_vpc} \
       ParameterKey=AppName,ParameterValue=${app_name} \
-      ParameterKey=DBSubnetGroupID,ParameterValue=${DB_SUBNET_GROUP:-matt-test} \
+      ParameterKey=DBSubnetGroupID,ParameterValue=${DB_SUBNET_GROUP:-test-subnet} \
       ParameterKey=DBInstanceIdentifier,ParameterValue=${rds_stack_name} \
       ParameterKey=DBName,ParameterValue=$(echo -n ${app_name} | sed 's/-//g') \
-      ParameterKey=DBUsername,ParameterValue=${RDS_USER_NAME:-fred} \
-      ParameterKey=DBPassword,ParameterValue=${RDS_PWD:-ethelsucks} \
+      ParameterKey=DBUsername,ParameterValue=${rds_username} \
+      ParameterKey=DBPassword,ParameterValue=${rds_password} \
       ParameterKey=DBParameterGroupName,ParameterValue=${RDS_PARAM_GROUP:-default.mysql5.6}
 
   aws cloudformation wait stack-create-complete --stack-name ${rds_stack_name}
