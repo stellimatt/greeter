@@ -51,18 +51,7 @@
     },
     "DocRoot": {
       "Type": "String",
-      "Description": "Path used for the root of the web application",
-      "Default": {
-        "Fn::Join": [
-          "",
-          [
-            "/var/www/",
-            {
-              "Ref": "AppName"
-            }
-          ]
-        ]
-      }
+      "Description": "Path used for the root of the web application"
     },
     "ServerName": {
       "Type": "String",
