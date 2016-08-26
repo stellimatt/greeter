@@ -23,7 +23,10 @@ end
 
 execute "seed database" do
   command "mysql -u #{node[:greeter][:username]} -p#{node[:greeter][:password]} -h #{node[:greeter][:db_url]} #{node[:greeter][:db_name]} < /tmp/db.seed"
-  cwd "/var/www/greeter"
+end
+
+execute "mkdir #{node[:greeter][:docroot]}" do
+  command "mkdir #{node[:greeter][:docroot]}"
 end
 
 template "#{node[:greeter][:docroot]}/index.php" do
