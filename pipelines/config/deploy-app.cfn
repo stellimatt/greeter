@@ -208,7 +208,7 @@
             "Fn::Join": [
               "",
               [
-                "#!/bin/bash\n\necho $(whoami) > /tmp/debug\n# git clone greeter\ngit clone git://github.com/stellimatt/greeter /opt/greeter\n\n#install chefdk\nif [ \":\" == \":$(dpkg -l | grep chefdk)\" ]; then\n  pushd /tmp\n  wget --quiet https://packages.chef.io/stable/ubuntu/12.04/chefdk_0.16.28-1_amd64.deb\n  dpkg -i chefdk_0.16.28-1_amd64.deb\n  mkdir /tmp/cookbooks\nfi\n\npushd /opt/greeter/cookbooks/greeter\nberks vendor /tmp/cookbooks\n\ncat > /tmp/chef.json <<CHEFJSON\n{\n  \"run_list\": [\n    \"greeter\"\n  ],\n  \"greeter\": {\n    \"db_url\": \"",
+                "#!/bin/bash\n\necho $(whoami) > /tmp/debug\n# git clone greeter\ngit clone https://github.com/stellimatt/greeter /opt/greeter\n\n#install chefdk\nif [ \":\" == \":$(dpkg -l | grep chefdk)\" ]; then\n  pushd /tmp\n  wget --quiet https://packages.chef.io/stable/ubuntu/12.04/chefdk_0.16.28-1_amd64.deb\n  dpkg -i chefdk_0.16.28-1_amd64.deb\n  mkdir /tmp/cookbooks\nfi\n\npushd /opt/greeter/cookbooks/greeter\nberks vendor /tmp/cookbooks\n\ncat > /tmp/chef.json <<CHEFJSON\n{\n  \"run_list\": [\n    \"greeter\"\n  ],\n  \"greeter\": {\n    \"db_url\": \"",
                 {
                   "Ref": "DbUrl"
                 },
