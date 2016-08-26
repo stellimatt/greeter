@@ -26,7 +26,7 @@ cat > /tmp/chef.json <<CHEFJSON
     "password": "%{DbPassword}",
 
     "docroot": "%{DocRoot}",
-    "server_name": "%{}"
+    "server_name": "%{ServerName}"
   }
 }
 CHEFJSON
