@@ -14,8 +14,15 @@ web_app 'greeter' do
   server_name node[:greeter][:server_name]
 end
 
+cookbook_file "/tmp/db.seed" do
+  source 'db.seed'
+  owner 'root'
+  group 'root'
+  mode '755'
+end
+
 execute "seed database" do
-  command "mysql -u #{node[:greeter][:username]} -p#{node[:greeter][:password]} -h #{node[:greeter][:db_url]} #{node[:greeter][:db_name]} < db.seed"
+  command "mysql -u #{node[:greeter][:username]} -p#{node[:greeter][:password]} -h #{node[:greeter][:db_url]} #{node[:greeter][:db_name]} < /tmp/db.seed"
   cwd "/var/www/greeter"
 end
 
