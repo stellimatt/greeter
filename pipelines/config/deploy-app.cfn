@@ -7,7 +7,7 @@
       "Description": "Existing VPC ID to use"
     },
     "ASGImageId": {
-      "Type": "AWS::EC2::Image::Id",
+      "Type": "String",
       "Description": "Existing VPC ID to use",
       "Default": "ami-d90d92ce"
     },

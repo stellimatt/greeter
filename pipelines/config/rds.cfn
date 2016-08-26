@@ -41,6 +41,7 @@
     "DBClass": {
       "Type": "String",
       "Description": "Database instance size",
+      "Default": "db.t2.micro",
       "ConstraintDescription": "must be a valid database instance type."
     },
     "DBStorageSize": {
