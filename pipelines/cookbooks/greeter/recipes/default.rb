@@ -14,16 +14,12 @@ web_app 'greeter' do
   server_name node[:greeter][:server_name]
 end
 
-execute "remove default index.html" do
-  command "rm /var/www/html/index.html"
-end
-
 execute "seed database" do
-  command "mysql -u #{node[:greeter][:username]} -p#{node[:greeter][:password]} -h #{node[:greeter][:host] < db.seed"
-  cwd "/vagrant"
+  command "mysql -u #{node[:greeter][:username]} -p#{node[:greeter][:password]} -h #{node[:greeter][:db_url]} #{node[:greeter][:db_name]} < db.seed"
+  cwd "/var/www/greeter"
 end
 
-template "/var/www/html/index.php" do
+template "#{node[:greeter][:docroot]}/index.php" do
   source 'index.php.erb'
   owner 'www-data'
   group 'www-data'

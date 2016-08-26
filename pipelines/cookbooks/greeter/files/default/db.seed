@@ -1,0 +1,15 @@
+CREATE DATABASE IF NOT EXISTS `greeter`;
+USE greeter;
+DROP TABLE IF EXISTS `greetings`;
+CREATE TABLE `greetings` (
+  `ID` int(11) NOT NULL AUTO_INCREMENT,
+  `greeting` text,
+  PRIMARY KEY (`ID`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1;
+
+LOCK TABLES `greetings` WRITE;
+INSERT INTO `greetings` VALUES
+        (1,'Hello.'),
+        (2,'How you doing?'),
+        (3,'Welcome!');
+UNLOCK TABLES;

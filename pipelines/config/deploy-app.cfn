@@ -1,0 +1,352 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Creates a greeter stack",
+  "Parameters": {
+    "VpcId": {
+      "Type": "AWS::EC2::VPC::Id",
+      "Description": "Existing VPC ID to use"
+    },
+    "ASGImageId": {
+      "Type": "AWS::EC2::Image::Id",
+      "Description": "Existing VPC ID to use",
+      "Default": "ami-d90d92ce"
+    },
+    "ASGInstanceType": {
+      "Type": "String",
+      "Description": "Existing VPC ID to use",
+      "Default": "t2.micro"
+    },
+    "AppName": {
+      "Type": "String",
+      "Description": "Name for application"
+    },
+    "AWSKeyPair": {
+      "Type": "AWS::EC2::KeyPair::KeyName",
+      "Description": "EC2 Keypair"
+    },
+    "ASGSubnetIds": {
+      "Type": "CommaDelimitedList",
+      "Description": "The subnets the ELB will direct traffic to"
+    },
+    "ASGAvailabilityZones": {
+      "Type": "CommaDelimitedList",
+      "Description": "The AZs the AutoScaling group will deploy to"
+    },
+    "DbPassword": {
+      "Type": "String",
+      "Description": "Password for the database",
+      "NoEcho": true
+    },
+    "DbUsername": {
+      "Type": "String",
+      "Description": "Username for the database"
+    },
+    "DbUrl": {
+      "Type": "String",
+      "Description": "URL to reach the database"
+    },
+    "DbName": {
+      "Type": "String",
+      "Description": "Database name the application should use"
+    },
+    "DocRoot": {
+      "Type": "String",
+      "Description": "Path used for the root of the web application",
+      "Default": {
+        "Fn::Join": [
+          "",
+          [
+            "/var/www/",
+            {
+              "Ref": "AppName"
+            }
+          ]
+        ]
+      }
+    },
+    "ServerName": {
+      "Type": "String",
+      "Description": "application server name used in apache config",
+      "Default": "localhost"
+    }
+  },
+  "Resources": {
+    "securityGroup": {
+      "Properties": {
+        "GroupDescription": "Load balancer & autoscaling group security ingress/egress",
+        "VpcId": {
+          "Ref": "VpcId"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 8080,
+            "ToPort": 8080,
+            "CidrIp": "0.0.0.0/0"
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 8080,
+            "ToPort": 8080,
+            "CidrIp": "0.0.0.0/0"
+          }
+        ]
+      },
+      "Type": "AWS::EC2::SecurityGroup"
+    },
+    "loadBalancer": {
+      "Properties": {
+        "ConnectionDrainingPolicy": {
+          "Enabled": true,
+          "Timeout": 300
+        },
+        "CrossZone": true,
+        "HealthCheck": {
+          "Target": "HTTP:8080/",
+          "HealthyThreshold": 3,
+          "UnhealthyThreshold": 5,
+          "Interval": 90,
+          "Timeout": 60
+        },
+        "Listeners": [
+          {
+            "LoadBalancerPort": 8080,
+            "InstancePort": 8080,
+            "Protocol": "TCP"
+          }
+        ],
+        "SecurityGroups": [
+          {
+            "Ref": "securityGroup"
+          }
+        ],
+        "Subnets": {
+          "Ref": "ASGSubnetIds"
+        },
+        "Scheme": "internal"
+      },
+      "Type": "AWS::ElasticLoadBalancing::LoadBalancer"
+    },
+    "instanceRole": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "ec2.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Path": "/",
+        "Policies": [
+          {
+            "PolicyName": "greeter-policy",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudwatch:GetMetricStatistics",
+                    "cloudwatch:ListMetrics",
+                    "cloudwatch:PutMetricData",
+                    "ec2:DescribeTags"
+                  ],
+                  "Resource": "*"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "Type": "AWS::IAM::Role"
+    },
+    "instanceProfile": {
+      "Properties": {
+        "Path": "/",
+        "Roles": [
+          {
+            "Ref": "instanceRole"
+          }
+        ]
+      },
+      "Type": "AWS::IAM::InstanceProfile"
+    },
+    "launchConfig": {
+      "Properties": {
+        "AssociatePublicIpAddress": false,
+        "IamInstanceProfile": {
+          "Ref": "instanceProfile"
+        },
+        "ImageId": {
+          "Ref": "ASGImageId"
+        },
+        "InstanceType": {
+          "Ref": "ASGInstanceType"
+        },
+        "KeyName": {
+          "Ref": "AWSKeyPair"
+        },
+        "SecurityGroups": [
+          {
+            "Ref": "securityGroup"
+          }
+        ],
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "",
+              [
+                "#!/bin/bash\n\n# git clone greeter\ngit clone git://github.com/stellimatt/greeter /opt/greeter\n\n#install chefdk\nif [ \":\" == \":$(dpkg -l | grep chefdk)\" ]; then\n  pushd /tmp\n  wget --quiet https://packages.chef.io/stable/ubuntu/12.04/chefdk_0.16.28-1_amd64.deb\n  dpkg -i chefdk_0.16.28-1_amd64.deb\n  mkdir /tmp/cookbooks\nfi\n\npushd /opt/greeter/cookbooks/greeter\nberks vendor /tmp/cookbooks\n\ncat > /tmp/chef.json <<CHEFJSON\n{\n  \"run_list\": [\n    \"greeter\"\n  ],\n  \"greeter\": {\n    \"db_url\": \"",
+                {
+                  "Ref": "DbUrl"
+                },
+                "\",\n    \"db_name\": \"",
+                {
+                  "Ref": "DbName"
+                },
+                "\",\n    \"username\": \"",
+                {
+                  "Ref": "DbUsername"
+                },
+                "\",\n    \"password\": \"",
+                {
+                  "Ref": "DbPassword"
+                },
+                "\",\n\n    \"docroot\": \"",
+                {
+                  "Ref": "DocRoot"
+                },
+                "\",\n    \"server_name\": \"%{}\"\n  }\n}\nCHEFJSON\n\ncat > /tmp/solo.rb <<SOLO\n\tcookbook_path ['/tmp/cookbooks', '/opt/greeter/cookbooks']\nSOLO\n\n\nchef-solo -c /tmp/solo.rb -j /tmp/chef.json\n"
+              ]
+            ]
+          }
+        }
+      },
+      "Type": "AWS::AutoScaling::LaunchConfiguration"
+    },
+    "autoScalingGroup": {
+      "Properties": {
+        "AvailabilityZones": {
+          "Ref": "ASGAvailabilityZones"
+        },
+        "LaunchConfigurationName": {
+          "Ref": "launchConfig"
+        },
+        "LoadBalancerNames": [
+          {
+            "Ref": "loadBalancer"
+          }
+        ],
+        "HealthCheckGracePeriod": 300,
+        "HealthCheckType": "ELB",
+        "MaxSize": 3,
+        "MinSize": 1,
+        "VPCZoneIdentifier": {
+          "Ref": "ASGSubnetIds"
+        }
+      },
+      "CreationPolicy": {
+        "ResourceSignal": {
+          "Count": "1",
+          "Timeout": "PT10M"
+        }
+      },
+      "Type": "AWS::AutoScaling::AutoScalingGroup"
+    },
+    "scaleUpPolicy": {
+      "Properties": {
+        "AutoScalingGroupName": {
+          "Ref": "autoScalingGroup"
+        },
+        "AdjustmentType": "ChangeInCapacity",
+        "Cooldown": 300,
+        "ScalingAdjustment": "3"
+      },
+      "Type": "AWS::AutoScaling::ScalingPolicy"
+    },
+    "alarmHigh": {
+      "Properties": {
+        "AlarmDescription": "Scale-up if CPU > 75% for 1 minutes",
+        "MetricName": "CPUUtilization",
+        "Namespace": "AWS/EC2",
+        "Statistic": "Average",
+        "Period": "60",
+        "EvaluationPeriods": "1",
+        "Threshold": "75",
+        "AlarmActions": [
+          {
+            "Ref": "scaleUpPolicy"
+          }
+        ],
+        "Dimensions": [
+          {
+            "Name": "AutoScalingGroupName",
+            "Value": {
+              "Ref": "autoScalingGroup"
+            }
+          }
+        ],
+        "ComparisonOperator": "GreaterThanThreshold"
+      },
+      "Type": "AWS::CloudWatch::Alarm"
+    },
+    "scaleDownPolicy": {
+      "Properties": {
+        "AutoScalingGroupName": {
+          "Ref": "autoScalingGroup"
+        },
+        "AdjustmentType": "ChangeInCapacity",
+        "Cooldown": 600,
+        "ScalingAdjustment": "-1"
+      },
+      "Type": "AWS::AutoScaling::ScalingPolicy"
+    },
+    "alarmLow": {
+      "Properties": {
+        "AlarmDescription": "Scale-down if CPU < 30% for 5 minutes",
+        "MetricName": "CPUUtilization",
+        "Namespace": "AWS/EC2",
+        "Statistic": "Average",
+        "Period": "300",
+        "EvaluationPeriods": "1",
+        "Threshold": "30",
+        "AlarmActions": [
+          {
+            "Ref": "scaleDownPolicy"
+          }
+        ],
+        "Dimensions": [
+          {
+            "Name": "AutoScalingGroupName",
+            "Value": {
+              "Ref": "autoScalingGroup"
+            }
+          }
+        ],
+        "ComparisonOperator": "LessThanThreshold"
+      },
+      "Type": "AWS::CloudWatch::Alarm"
+    }
+  },
+  "Outputs": {
+    "DNSName": {
+      "Value": {
+        "Fn::GetAtt": [
+          "loadBalancer",
+          "DNSName"
+        ]
+      }
+    }
+  }
+}

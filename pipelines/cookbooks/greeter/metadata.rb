@@ -1,9 +1,11 @@
 name             'greeter'
 maintainer       'YOUR_NAME'
-maintainer_email 'YOUR_EMAIL'
+maintainer_email 'email@example.com'
 license          'All rights reserved'
 description      'Installs/Configures greeter'
 long_description 'Installs/Configures greeter'
+source_url 'http://github.com/stellimatt/greeter'
+issues_url 'http://github.com/stellimatt/greeter/issues'
 version          '0.1.0'
 
 depends 'apt'
