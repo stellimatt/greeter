@@ -9,7 +9,7 @@
     "ASGImageId": {
       "Type": "String",
       "Description": "Existing VPC ID to use",
-      "Default": "ami-d90d92ce"
+      "Default": "ami-2d39803a"
     },
     "ASGInstanceType": {
       "Type": "String",
