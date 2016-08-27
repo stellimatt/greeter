@@ -1,0 +1,295 @@
+{
+   "AWSTemplateFormatVersion" : "2010-09-09",
+   "Parameters" : {
+      "ASGSubnetIds" : {
+         "Type" : "CommaDelimitedList",
+         "Description" : "The subnets the ELB will direct traffic to"
+      },
+      "ASGImageId" : {
+         "Type" : "AWS::EC2::Image::Id",
+         "Description" : "Existing VPC ID to use",
+         "Default" : "ami-d90d92ce"
+      },
+      "VpcId" : {
+         "Type" : "AWS::EC2::VPC::Id",
+         "Description" : "Existing VPC ID to use"
+      },
+      "AWSKeyPair" : {
+         "Type" : "AWS::EC2::KeyPair::KeyName",
+         "Description" : "EC2 Keypair"
+      },
+      "AppName" : {
+         "Type" : "String",
+         "Description" : "Name for application"
+      },
+      "ASGAvailabilityZones" : {
+         "Description" : "The AZs the AutoScaling group will deploy to",
+         "Type" : "CommaDelimitedList"
+      },
+      "ASGInstanceType" : {
+         "Description" : "Existing VPC ID to use",
+         "Default" : "t2.micro",
+         "Type" : "String"
+      }
+   },
+   "Resources" : {
+      "launchConfig" : {
+         "Properties" : {
+            "SecurityGroups" : [
+               {
+                  "Ref" : "securityGroup"
+               }
+            ],
+            "UserData" : {
+               "Fn::Base64" : {
+                  "Fn::Join" : [
+                     "",
+                     [
+                        "#!/bin/bash\nif [ $UID != 0 ]; then\n  echo \"must be root to run this script\"\n  exit 1\nfi\napt-get update 2>&1> /dev/null\napt-get install mysql-server-5.6 nodejs npm git -y 2>&1> /dev/null\nnpm -g install jslint\nnpm -g install forever\nnpm -g install mysql\nmkdir /nodejs-app\ngit clone https://github.com/stellimatt/greeter.git /nodejs-app\ncd /nodejs-app/app\nnpm install config\nnpm install forever\nnpm install forever-monitor\nforever index.js\n"
+                     ]
+                  ]
+               }
+            },
+            "ImageId" : {
+               "Ref" : "ASGImageId"
+            },
+            "IamInstanceProfile" : {
+               "Ref" : "instanceProfile"
+            },
+            "AssociatePublicIpAddress" : false,
+            "InstanceType" : {
+               "Ref" : "ASGInstanceType"
+            },
+            "KeyName" : {
+               "Ref" : "AWSKeyPair"
+            }
+         },
+         "Type" : "AWS::AutoScaling::LaunchConfiguration"
+      },
+      "loadBalancer" : {
+         "Properties" : {
+            "HealthCheck" : {
+               "Interval" : 90,
+               "UnhealthyThreshold" : 5,
+               "Timeout" : 60,
+               "HealthyThreshold" : 3,
+               "Target" : "HTTP:8080/"
+            },
+            "Subnets" : {
+               "Ref" : "ASGSubnetIds"
+            },
+            "Scheme" : "internal",
+            "SecurityGroups" : [
+               {
+                  "Ref" : "securityGroup"
+               }
+            ],
+            "Listeners" : [
+               {
+                  "InstancePort" : 8080,
+                  "LoadBalancerPort" : 8080,
+                  "Protocol" : "TCP"
+               }
+            ],
+            "CrossZone" : true,
+            "ConnectionDrainingPolicy" : {
+               "Enabled" : true,
+               "Timeout" : 300
+            }
+         },
+         "Type" : "AWS::ElasticLoadBalancing::LoadBalancer"
+      },
+      "scaleDownPolicy" : {
+         "Type" : "AWS::AutoScaling::ScalingPolicy",
+         "Properties" : {
+            "AdjustmentType" : "ChangeInCapacity",
+            "ScalingAdjustment" : "-1",
+            "AutoScalingGroupName" : {
+               "Ref" : "autoScalingGroup"
+            },
+            "Cooldown" : 600
+         }
+      },
+      "securityGroup" : {
+         "Type" : "AWS::EC2::SecurityGroup",
+         "Properties" : {
+            "SecurityGroupIngress" : [
+               {
+                  "ToPort" : 8080,
+                  "CidrIp" : "0.0.0.0/0",
+                  "FromPort" : 8080,
+                  "IpProtocol" : "tcp"
+               }
+            ],
+            "GroupDescription" : "Load balancer & autoscaling group security ingress/egress",
+            "VpcId" : {
+               "Ref" : "VpcId"
+            },
+            "SecurityGroupEgress" : [
+               {
+                  "CidrIp" : "0.0.0.0/0",
+                  "FromPort" : 8080,
+                  "IpProtocol" : "tcp",
+                  "ToPort" : 8080
+               }
+            ]
+         }
+      },
+      "scaleUpPolicy" : {
+         "Properties" : {
+            "AdjustmentType" : "ChangeInCapacity",
+            "Cooldown" : 300,
+            "AutoScalingGroupName" : {
+               "Ref" : "autoScalingGroup"
+            },
+            "ScalingAdjustment" : "3"
+         },
+         "Type" : "AWS::AutoScaling::ScalingPolicy"
+      },
+      "instanceProfile" : {
+         "Properties" : {
+            "Roles" : [
+               {
+                  "Ref" : "instanceRole"
+               }
+            ],
+            "Path" : "/"
+         },
+         "Type" : "AWS::IAM::InstanceProfile"
+      },
+      "instanceRole" : {
+         "Properties" : {
+            "Policies" : [
+               {
+                  "PolicyName" : "nodejs-app-policy",
+                  "PolicyDocument" : {
+                     "Statement" : [
+                        {
+                           "Effect" : "Allow",
+                           "Resource" : "*",
+                           "Action" : [
+                              "cloudwatch:GetMetricStatistics",
+                              "cloudwatch:ListMetrics",
+                              "cloudwatch:PutMetricData",
+                              "ec2:DescribeTags"
+                           ]
+                        }
+                     ],
+                     "Version" : "2012-10-17"
+                  }
+               }
+            ],
+            "Path" : "/",
+            "AssumeRolePolicyDocument" : {
+               "Statement" : [
+                  {
+                     "Effect" : "Allow",
+                     "Principal" : {
+                        "Service" : [
+                           "ec2.amazonaws.com"
+                        ]
+                     },
+                     "Action" : [
+                        "sts:AssumeRole"
+                     ]
+                  }
+               ],
+               "Version" : "2012-10-17"
+            }
+         },
+         "Type" : "AWS::IAM::Role"
+      },
+      "alarmLow" : {
+         "Type" : "AWS::CloudWatch::Alarm",
+         "Properties" : {
+            "Namespace" : "AWS/EC2",
+            "ComparisonOperator" : "LessThanThreshold",
+            "Dimensions" : [
+               {
+                  "Name" : "AutoScalingGroupName",
+                  "Value" : {
+                     "Ref" : "autoScalingGroup"
+                  }
+               }
+            ],
+            "Period" : "300",
+            "AlarmActions" : [
+               {
+                  "Ref" : "scaleDownPolicy"
+               }
+            ],
+            "Statistic" : "Average",
+            "EvaluationPeriods" : "1",
+            "AlarmDescription" : "Scale-down if CPU < 30% for 5 minutes",
+            "Threshold" : "30",
+            "MetricName" : "CPUUtilization"
+         }
+      },
+      "alarmHigh" : {
+         "Type" : "AWS::CloudWatch::Alarm",
+         "Properties" : {
+            "AlarmDescription" : "Scale-up if CPU > 75% for 1 minutes",
+            "Threshold" : "75",
+            "MetricName" : "CPUUtilization",
+            "EvaluationPeriods" : "1",
+            "Statistic" : "Average",
+            "AlarmActions" : [
+               {
+                  "Ref" : "scaleUpPolicy"
+               }
+            ],
+            "Period" : "60",
+            "Namespace" : "AWS/EC2",
+            "ComparisonOperator" : "GreaterThanThreshold",
+            "Dimensions" : [
+               {
+                  "Value" : {
+                     "Ref" : "autoScalingGroup"
+                  },
+                  "Name" : "AutoScalingGroupName"
+               }
+            ]
+         }
+      },
+      "autoScalingGroup" : {
+         "Properties" : {
+            "HealthCheckGracePeriod" : 300,
+            "LoadBalancerNames" : [
+               {
+                  "Ref" : "loadBalancer"
+               }
+            ],
+            "MinSize" : 1,
+            "MaxSize" : 3,
+            "LaunchConfigurationName" : {
+               "Ref" : "launchConfig"
+            },
+            "VPCZoneIdentifier" : {
+               "Ref" : "ASGSubnetIds"
+            },
+            "AvailabilityZones" : {
+               "Ref" : "ASGAvailabilityZones"
+            },
+            "HealthCheckType" : "ELB"
+         },
+         "CreationPolicy" : {
+            "ResourceSignal" : {
+               "Count" : "1",
+               "Timeout" : "PT10M"
+            }
+         },
+         "Type" : "AWS::AutoScaling::AutoScalingGroup"
+      }
+   },
+   "Description" : "Creates a nodejs-app stack",
+   "Outputs" : {
+      "DNSName" : {
+         "Value" : {
+            "Fn::GetAtt" : [
+               "loadBalancer",
+               "DNSName"
+            ]
+         }
+      }
+   }
+}
