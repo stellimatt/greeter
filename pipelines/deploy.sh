@@ -11,6 +11,7 @@ aws_subnets=${AWS_SUBNET_IDS:-subnet-c5a76a8c,subnet-3b233a06}
 aws_azs=${AWS_AZS:-us-east-1c,us-east-1b}
 aws_keypair=${AWS_KEYPAIR:-example.pem}
 working_directory=.working_directory
+app_port=80
 
 rds_password=${RDS_PWD:-example123}
 rds_username=${RDS_USER_NAME:-fred}
@@ -30,15 +31,15 @@ stamp=$(date +%Y%m%d%H%M%s)
 #TODO
 # look for RDS stack by name:
 rds_stack_name="rds-${app_name}"
-echo $(aws cloudformation describe-stacks --stack-name ${rds_stack_name} 2>/dev/null) > rds.tmp
-stack_exists=$(cat rds.tmp | grep -i stackname | grep ${rds_stack_name})
+echo $(aws cloudformation describe-stacks --stack-name ${rds_stack_name} 2>/dev/null) > ${working_directory}/rds.tmp
+stack_exists=$(cat ${working_directory}/rds.tmp | grep -i stackname | grep ${rds_stack_name})
 
 if [ ":$stack_exists" == ":" ]; then
   aws cloudformation create-stack \
     --disable-rollback \
     --region ${aws_region} \
     --stack-name ${rds_stack_name} \
-    --template-body https://stelligent-blog.s3.amazonaws.com/stelligent-labs/chefjson/templates/mysql-rds.template \
+    --template-url https://s3.amazonaws.com/stelligent-blog/chefjson/templates/mysql-rds.template.json \
     --capabilities CAPABILITY_IAM \
     --tags \
       Key="application",Value=${app_name} \
@@ -53,15 +54,16 @@ if [ ":$stack_exists" == ":" ]; then
       ParameterKey=DBPassword,ParameterValue=${rds_password} \
       ParameterKey=DBParameterGroupName,ParameterValue=${RDS_PARAM_GROUP:-default.mysql5.6}
 
+
   aws cloudformation wait stack-create-complete --stack-name ${rds_stack_name}
-  echo $(aws cloudformation describe-stacks --stack-name ${rds_stack_name} 2>/dev/null) > rds.tmp
+  echo $(aws cloudformation describe-stacks --stack-name ${rds_stack_name} 2>/dev/null) > ${working_directory}/rds.tmp
 fi
 
-db_instance_id=$(cat rds.tmp | jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "DBInstanceId") | .OutputValue')
-db_url=$(cat rds.tmp | jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "DBEndpoint") | .OutputValue')
-db_port=$(cat rds.tmp | jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "DBPort") | .OutputValue')
+db_instance_id=$(cat ${working_directory}/rds.tmp | jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "DBInstanceId") | .OutputValue')
+db_url=$(cat ${working_directory}/rds.tmp | jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "DBEndpoint") | .OutputValue')
+db_port=$(cat ${working_directory}/rds.tmp | jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "DBPort") | .OutputValue')
 
-git_statement="git clone --branch ${repository_branch} --depth 1 ${repository_url} /opt/${app_name}"
+git_statement="git clone -b ${repository_branch} ${repository_url} /opt/${app_name}"
 
 # run aws cli for cloudformation of ASG
 asg_stack_name="${app_name}-${stamp}"
@@ -81,7 +83,7 @@ aws cloudformation create-stack \
   --disable-rollback \
   --region ${aws_region} \
   --stack-name ${asg_stack_name} \
-  --template-body https://s3.amazonaws.com/stelligent-blog/chefjson/templates/deploy-app.template \
+  --template-url https://s3.amazonaws.com/stelligent-blog/chefjson/templates/deploy-app.template.json \
   --capabilities CAPABILITY_IAM \
   --tags \
     Key="application",Value=${app_name} \
@@ -93,7 +95,9 @@ aws cloudformation create-stack \
     ParameterKey=ASGSubnetIds,ParameterValue=\"${aws_subnets}\" \
     ParameterKey=ASGAvailabilityZones,ParameterValue=\"${aws_azs}\" \
     ParameterKey=ChefJsonKey,ParameterValue=${chef_json_key} \
-    ParameterKey=GitStatement,ParameterValue=${git_statement}
+    ParameterKey=GitBranch,ParameterValue=${repository_branch} \
+    ParameterKey=GitUrl,ParameterValue=${repository_url} \
+    ParameterKey=SecurityGroupPort,ParameterValue=${app_port}
 
 
 aws cloudformation wait stack-create-complete --stack-name ${asg_stack_name}
