@@ -57,9 +57,9 @@ if [ ":$stack_exists" == ":" ]; then
   echo $(aws cloudformation describe-stacks --stack-name ${rds_stack_name} 2>/dev/null) > rds.tmp
 fi
 
-db_instance_id=$(cat rds.tmp | jq '.Stacks[0].Outputs[] | select(.OutputKey == "DBInstanceId") | .OutputValue')
-db_url=$(cat rds.tmp | jq '.Stacks[0].Outputs[] | select(.OutputKey == "DBEndpoint") | .OutputValue')
-db_port=$(cat rds.tmp | jq '.Stacks[0].Outputs[] | select(.OutputKey == "DBPort") | .OutputValue')
+db_instance_id=$(cat rds.tmp | jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "DBInstanceId") | .OutputValue')
+db_url=$(cat rds.tmp | jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "DBEndpoint") | .OutputValue')
+db_port=$(cat rds.tmp | jq -r '.Stacks[0].Outputs[] | select(.OutputKey == "DBPort") | .OutputValue')
 
 git_statement="git clone --branch ${repository_branch} --depth 1 ${repository_url} /opt/${app_name}"
 
@@ -73,9 +73,9 @@ echo {} | jq ".run_list = [\"greeter\"] | .greeter = \
   db_name: \"$app_name\", \
   username: \"$rds_username\", \
   password: \"$rds_password\", \
-  docroot: \"/var/www/${app_name}\"}" > chef.json
+  docroot: \"/var/www/${app_name}\"}" > ${working_directory}/chef.json
 
-aws s3 cp chef.json s3://stelligent-labs/chefjson/jsons/$chef_json_key
+aws s3 cp ${working_directory}/chef.json s3://stelligent-blog/chefjson/jsons/$chef_json_key
 
 aws cloudformation create-stack \
   --disable-rollback \
