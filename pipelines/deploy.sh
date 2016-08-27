@@ -4,7 +4,7 @@
 
 app_name=greeter
 repository_url=https://github.com/stellimatt/greeter.git
-repository_branch=master
+repository_branch=master # change to phase1 when ready
 aws_region=${AWS_REGION:-us-east-1}
 aws_vpc=${AWS_VPC_ID:-vpc-857a3ee2}
 aws_subnets=${AWS_SUBNET_IDS:-subnet-c5a76a8c,subnet-3b233a06}
@@ -34,12 +34,11 @@ echo $(aws cloudformation describe-stacks --stack-name ${rds_stack_name} 2>/dev/
 stack_exists=$(cat rds.tmp | grep -i stackname | grep ${rds_stack_name})
 
 if [ ":$stack_exists" == ":" ]; then
-  cfn_template=${DEPLOY_RDS_TEMPLATE:-deploy-rds.template}
   aws cloudformation create-stack \
     --disable-rollback \
     --region ${aws_region} \
     --stack-name ${rds_stack_name} \
-    --template-body file://${cfn_template} \
+    --template-body https://stelligent-blog.s3.amazonaws.com/stelligent-labs/chefjson/templates/mysql-rds.template \
     --capabilities CAPABILITY_IAM \
     --tags \
       Key="application",Value=${app_name} \
@@ -62,14 +61,27 @@ db_instance_id=$(cat rds.tmp | jq '.Stacks[0].Outputs[] | select(.OutputKey == "
 db_url=$(cat rds.tmp | jq '.Stacks[0].Outputs[] | select(.OutputKey == "DBEndpoint") | .OutputValue')
 db_port=$(cat rds.tmp | jq '.Stacks[0].Outputs[] | select(.OutputKey == "DBPort") | .OutputValue')
 
+git_statement="git clone --branch ${repository_branch} --depth 1 ${repository_url} /opt/${app_name}"
+
 # run aws cli for cloudformation of ASG
 asg_stack_name="${app_name}-${stamp}"
-cfn_template=${DEPLOY_TEMPLATE:-deploy-app.template}
+chef_json_key="${asg_stack_name}.json"
+
+# push chef.json to s3
+echo {} | jq ".run_list = [\"greeter\"] | .greeter = \
+  {db_url: \"$db_url\", \
+  db_name: \"$app_name\", \
+  username: \"$rds_username\", \
+  password: \"$rds_password\", \
+  docroot: \"/var/www/${app_name}\"}" > chef.json
+
+aws s3 cp chef.json s3://stelligent-labs/chefjson/jsons/$chef_json_key
+
 aws cloudformation create-stack \
   --disable-rollback \
   --region ${aws_region} \
   --stack-name ${asg_stack_name} \
-  --template-body file://${cfn_template} \
+  --template-body https://s3.amazonaws.com/stelligent-blog/chefjson/templates/deploy-app.template \
   --capabilities CAPABILITY_IAM \
   --tags \
     Key="application",Value=${app_name} \
@@ -80,10 +92,8 @@ aws cloudformation create-stack \
     ParameterKey=AWSKeyPair,ParameterValue=${aws_keypair} \
     ParameterKey=ASGSubnetIds,ParameterValue=\"${aws_subnets}\" \
     ParameterKey=ASGAvailabilityZones,ParameterValue=\"${aws_azs}\" \
-    ParameterKey=DbPassword,ParameterValue=${rds_password} \
-    ParameterKey=DbUsername,ParameterValue=${rds_username} \
-    ParameterKey=DbUrl,ParameterValue=${db_url} \
-    ParameterKey=DocRoot,ParameterValue="/var/www/${app_name}" \
-    ParameterKey=DbName,ParameterValue=${app_name}
+    ParameterKey=ChefJsonKey,ParameterValue=${chef_json_key} \
+    ParameterKey=GitStatement,ParameterValue=${git_statement}
+
 
 aws cloudformation wait stack-create-complete --stack-name ${asg_stack_name}
