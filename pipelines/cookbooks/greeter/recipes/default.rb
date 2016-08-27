@@ -8,6 +8,14 @@ apache_site "default" do
   enable true
 end
 
+apache_module "mpm_event" do
+  enable false
+end
+
+apache_module "mpm_prefork" do
+  enable true
+end
+
 web_app 'greeter' do
   template 'site.conf.erb'
   docroot node[:greeter][:docroot]

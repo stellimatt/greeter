@@ -30,7 +30,9 @@ stamp=$(date +%Y%m%d%H%M%s)
 #TODO
 # look for RDS stack by name:
 rds_stack_name="rds-${app_name}"
-stack_exists=$(aws cloudformation describe-stacks | grep -i stackname | grep ${rds_stack_name})
+echo $(aws cloudformation describe-stacks --stack-name ${rds_stack_name} 2>/dev/null) > rds.tmp
+stack_exists=$(cat rds.tmp | grep -i stackname | grep ${rds_stack_name})
+
 if [ ":$stack_exists" == ":" ]; then
   cfn_template=${DEPLOY_RDS_TEMPLATE:-deploy-rds.template}
   aws cloudformation create-stack \
